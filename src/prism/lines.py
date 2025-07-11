@@ -75,7 +75,7 @@ class Line:
             # Note: at this point leaf.prefix should be empty except for
             # imports, for which we only preserve newlines.
             leaf.prefix += whitespace(
-                leaf, complex_subscript=self.is_complex_subscript(leaf)
+                leaf, complex_subscript=self.is_complex_subscript(leaf), mode=self.mode
             )
         if self.inside_brackets or not preformatted or track_bracket:
             self.bracket_tracker.mark(leaf)
@@ -84,7 +84,31 @@ class Line:
                     self.magic_trailing_comma = leaf
             elif self.has_magic_trailing_comma(leaf, ensure_removable=True):
                 self.remove_trailing_comma()
+        # Prism: Add space before = or : for kwargs and dicts if enabled
+        if leaf.type == token.EQUAL and self.mode.space_around_kwargs_equals:
+            if leaf.prefix == "":
+                leaf.prefix = " "
+        if leaf.type == token.COLON and self.mode.space_around_dict_colons:
+            if leaf.prefix == "":
+                leaf.prefix = " "
         if not self.append_comment(leaf):
+            # Prism: Add space after = or : for kwargs and dicts if enabled
+            if self.leaves:
+                prev_leaf = self.leaves[-1]
+                # For kwargs =
+                if (
+                    prev_leaf.type == token.EQUAL
+                    and self.mode.space_around_kwargs_equals
+                ):
+                    if leaf.prefix == "":
+                        leaf.prefix = " "
+                # For dict :
+                if (
+                    prev_leaf.type == token.COLON
+                    and self.mode.space_around_dict_colons
+                ):
+                    if leaf.prefix == "":
+                        leaf.prefix = " "
             self.leaves.append(leaf)
 
     def append_safe(self, leaf: Leaf, preformatted: bool = False) -> None:
@@ -496,6 +520,7 @@ class EmptyLineTracker:
         """
         before, after = self._maybe_empty_lines(current_line)
         previous_after = self.previous_block.after if self.previous_block else 0
+<<<<<<< HEAD:src/prism/lines.py
         before = (
             # Prism should not insert empty lines at the beginning
             # of the file
@@ -503,6 +528,57 @@ class EmptyLineTracker:
             if self.previous_line is None
             else before - previous_after
         )
+=======
+        # For consecutive function/class definitions, don't subtract previous_after
+        # to maintain full spacing (2 for inner, 3 for module-level)
+        if (self.previous_line and 
+            (current_line.is_def or current_line.is_class) and
+            (self.previous_line.is_def or self.previous_line.is_class)):
+            before = 0 if self.previous_line is None else before
+        else:
+            before = (
+                0
+                if self.previous_line is None
+                else before - previous_after
+            )
+        # Only set 'after' for function/class/decorator lines
+        if not (current_line.is_decorator or current_line.is_def or current_line.is_class):
+            after = 0
+        # Prism: Never add blank lines after def/class lines
+        elif current_line.is_def or current_line.is_class:
+            after = 0
+        # Suppress 'after' if the next line is dedented or at end of file
+        if self.previous_line and self.previous_line.depth > current_line.depth:
+            after = 0
+        # Prism: Add extra blank lines after the last statement in a function/class body
+        if (self.previous_line and 
+            self.previous_line.depth > 0 and 
+            current_line.depth < self.previous_line.depth and
+            not (current_line.is_decorator or current_line.is_def or current_line.is_class)):
+            # This is the last statement in a block, add extra blank lines
+            if self.previous_line.depth == 1:  # Module-level function/class
+                after = 3
+            else:  # Inner function/class
+                after = 2
+        # Prism: Add extra blank lines between consecutive function/class definitions at the same depth
+        elif (self.previous_line and 
+              current_line.depth == self.previous_line.depth and
+              (current_line.is_def or current_line.is_class) and
+              (self.previous_line.is_def or self.previous_line.is_class)):
+            # This is a consecutive function/class definition at the same depth
+            if current_line.depth == 0:  # Module-level
+                before = max(before, 3)
+            else:  # Inner function/class
+                before = max(before, 2)
+        # Do not insert blank lines before the first statement inside any block (function or class)
+        if (
+            self.previous_line
+            and (self.previous_line.is_def or self.previous_line.is_class)
+            and current_line.depth > self.previous_line.depth
+        ):
+            before = 0
+
+>>>>>>> 3fe0be5 (WIP: whitespace for prism):src/black/lines.py
         block = LinesBlock(
             mode=self.mode,
             previous_block=self.previous_block,
@@ -547,12 +623,12 @@ class EmptyLineTracker:
                     # Empty lines between attributes and methods should be preserved.
                     before = min(1, before)
                 elif depth:
-                    before = 0
+                    before = 2
                 else:
-                    before = 1
+                    before = 3
             else:
                 if depth:
-                    before = 1
+                    before = 2
                 elif (
                     not depth
                     and self.previous_defs[-1]
@@ -562,19 +638,20 @@ class EmptyLineTracker:
                         not in ("with", "try", "for", "while", "if", "match")
                     )
                 ):
-                    # We shouldn't add two newlines between an indented function and
-                    # a dependent non-indented clause. This is to avoid issues with
-                    # conditional function definitions that are technically top-level
-                    # and therefore get two trailing newlines, but look weird and
-                    # inconsistent when they're followed by elif, else, etc. This is
-                    # worse because these functions only get *one* preceding newline
-                    # already.
                     before = 1
                 else:
-                    before = 2
+                    before = 3
             self.previous_defs.pop()
         if current_line.is_decorator or current_line.is_def or current_line.is_class:
             return self._maybe_empty_lines_for_class_or_def(current_line, before)
+
+        # Prism: Do not insert blank lines before the first statement inside any block
+        if (
+            self.previous_line
+            and (self.previous_line.is_def or self.previous_line.is_class)
+            and current_line.depth > self.previous_line.depth
+        ):
+            before = 0
 
         if (
             self.previous_line
@@ -608,74 +685,11 @@ class EmptyLineTracker:
             # Don't insert empty lines before the first line in the file.
             return 0, 0
 
-        if self.previous_line.is_decorator:
-            if self.mode.is_pyi and current_line.is_stub_class:
-                # Insert an empty line after a decorated stub class
-                return 0, 1
-
-            return 0, 0
-
-        if self.previous_line.depth < current_line.depth and (
-            self.previous_line.is_class or self.previous_line.is_def
-        ):
-            return 0, 0
-
-        comment_to_add_newlines: Optional[LinesBlock] = None
-        if (
-            self.previous_line.is_comment
-            and self.previous_line.depth == current_line.depth
-            and before == 0
-        ):
-            slc = self.semantic_leading_comment
-            if (
-                Preview.empty_lines_before_class_or_def_with_leading_comments
-                in current_line.mode
-                and slc is not None
-                and slc.previous_block is not None
-                and not slc.previous_block.original_line.is_class
-                and not slc.previous_block.original_line.opens_block
-                and slc.before <= 1
-            ):
-                comment_to_add_newlines = slc
-            else:
-                return 0, 0
-
-        if self.mode.is_pyi:
-            if current_line.is_class or self.previous_line.is_class:
-                if self.previous_line.depth < current_line.depth:
-                    newlines = 0
-                elif self.previous_line.depth > current_line.depth:
-                    newlines = 1
-                elif current_line.is_stub_class and self.previous_line.is_stub_class:
-                    # No blank line between classes with an empty body
-                    newlines = 0
-                else:
-                    newlines = 1
-            elif (
-                current_line.is_def or current_line.is_decorator
-            ) and not self.previous_line.is_def:
-                if current_line.depth:
-                    # In classes empty lines between attributes and methods should
-                    # be preserved.
-                    newlines = min(1, before)
-                else:
-                    # Blank line between a block of functions (maybe with preceding
-                    # decorators) and a block of non-functions
-                    newlines = 1
-            elif self.previous_line.depth > current_line.depth:
-                newlines = 1
-            else:
-                newlines = 0
+        # Prism: Always add 3 before for module-level, 2 for inner; never add after for header
+        if current_line.depth == 0:
+            return 3, 0
         else:
-            newlines = 1 if current_line.depth else 2
-        if comment_to_add_newlines is not None:
-            previous_block = comment_to_add_newlines.previous_block
-            if previous_block is not None:
-                comment_to_add_newlines.before = (
-                    max(comment_to_add_newlines.before, newlines) - previous_block.after
-                )
-                newlines = 0
-        return newlines, 0
+            return 2, 0
 
 
 def enumerate_reversed(sequence: Sequence[T]) -> Iterator[Tuple[Index, T]]:

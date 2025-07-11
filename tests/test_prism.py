@@ -2376,3 +2376,98 @@ def tracefunc(
     if "prism/__init__.py" in filename:
         print(f"{' ' * stack}{lineno}:{funcname}")
     return tracefunc
+
+
+def test_prism_extra_empty_lines_around_defs_and_classes():
+    source = (
+        'def outer():\n'
+        '    def inner():\n'
+        '        pass\n'
+        '    class InnerClass:\n'
+        '        pass\n'
+        '    pass\n'
+        'def another():\n'
+        '    pass\n'
+        'class TopLevel:\n'
+        '    pass\n'
+    )
+    expected = (
+        'def outer():\n'
+        '    def inner():\n'
+        '        pass\n'
+        '\n'
+        '\n'
+        '    class InnerClass:\n'
+        '        pass\n'
+        '\n'
+        '\n'
+        '    pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'def another():\n'
+        '    pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'class TopLevel:\n'
+        '    pass\n'
+    )
+    assert_format(source, expected)
+
+def test_prism_consecutive_functions_spacing():
+    source = (
+        'class TopLevelClass:\n'
+        '    def __init__(self):\n'
+        '        pass\n'
+        '    def method(self):\n'
+        '        pass\n'
+        '    def another_method(self):\n'
+        '        pass\n'
+        '\n'
+        'def first_function():\n'
+        '    pass\n'
+        '\n'
+        'def second_function():\n'
+        '    pass\n'
+        '\n'
+        'class FirstClass:\n'
+        '    pass\n'
+        '\n'
+        'class SecondClass:\n'
+        '    pass\n'
+    )
+    expected = (
+        'class TopLevelClass:\n'
+        '    def __init__(self):\n'
+        '        pass\n'
+        '\n'
+        '\n'
+        '    def method(self):\n'
+        '        pass\n'
+        '\n'
+        '\n'
+        '    def another_method(self):\n'
+        '        pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'def first_function():\n'
+        '    pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'def second_function():\n'
+        '    pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'class FirstClass:\n'
+        '    pass\n'
+        '\n'
+        '\n'
+        '\n'
+        'class SecondClass:\n'
+        '    pass\n'
+    )
+    assert_format(source, expected)

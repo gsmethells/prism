@@ -30,8 +30,13 @@ from blib2to3.pgen2.tokenize import TokenError
     src_contents=hypothesmith.from_grammar() | hypothesmith.from_node(),
     # Using randomly-varied modes helps us to exercise less common code paths.
     mode=st.builds(
+<<<<<<< HEAD
         prism.FileMode,
         line_length=st.just(88) | st.integers(0, 200),
+=======
+        black.FileMode,
+        line_length=st.just(black.DEFAULT_LINE_LENGTH) | st.integers(0, 200),
+>>>>>>> 3fe0be5 (WIP: whitespace for prism)
         string_normalization=st.booleans(),
         preview=st.booleans(),
         is_pyi=st.booleans(),

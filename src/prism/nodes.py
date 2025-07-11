@@ -16,8 +16,14 @@ else:
 
 from mypy_extensions import mypyc_attr
 
+<<<<<<< HEAD:src/prism/nodes.py
 from prism.cache import CACHE_DIR
 from prism.strings import has_triple_quotes
+=======
+from black.cache import CACHE_DIR
+from black.mode import Mode
+from black.strings import has_triple_quotes
+>>>>>>> 3fe0be5 (WIP: whitespace for prism):src/black/nodes.py
 from blib2to3 import pygram
 from blib2to3.pgen2 import token
 from blib2to3.pytree import NL, Leaf, Node, type_repr
@@ -175,7 +181,7 @@ class Visitor(Generic[T]):
                 yield from self.visit(child)
 
 
-def whitespace(leaf: Leaf, *, complex_subscript: bool) -> str:  # noqa: C901
+def whitespace(leaf: Leaf, *, complex_subscript: bool, mode: Optional["Mode"] = None) -> str:  # noqa: C901
     """Return whitespace prefix if needed for the given `leaf`.
 
     `complex_subscript` signals whether the given leaf is part of a subscription
@@ -194,6 +200,11 @@ def whitespace(leaf: Leaf, *, complex_subscript: bool) -> str:  # noqa: C901
         return DOUBLESPACE
 
     assert p is not None, f"INTERNAL ERROR: hand-made leaf without parent: {leaf!r}"
+    
+    # Prism-specific whitespace configuration for infix operators
+    if mode is not None and mode.space_around_infix_operators and t in MATH_OPERATORS:
+        return SPACE
+    
     if t == token.COLON and p.type not in {
         syms.subscript,
         syms.subscriptlist,
@@ -401,6 +412,27 @@ def whitespace(leaf: Leaf, *, complex_subscript: bool) -> str:  # noqa: C901
     elif p.type == syms.except_clause:
         if t == token.STAR:
             return NO
+
+    # Prism: Add space before = for kwargs
+    if (
+        mode is not None
+        and mode.space_around_kwargs_equals
+        and t == token.EQUAL
+        and p is not None
+        and (
+            p.type == syms.argument or p.type == syms.typedargslist
+        )
+    ):
+        return SPACE
+    # Prism: Add space before : for dicts
+    if (
+        mode is not None
+        and mode.space_around_dict_colons
+        and t == token.COLON
+        and p is not None
+        and p.type == syms.dictsetmaker
+    ):
+        return SPACE
 
     return SPACE
 
