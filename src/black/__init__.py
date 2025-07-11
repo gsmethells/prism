@@ -282,6 +282,21 @@ def validate_regex(
     ),
 )
 @click.option(
+    "--space-around-infix-operators",
+    is_flag=True,
+    help="Add spaces around infix operators (e.g., a + b instead of a+b).",
+)
+@click.option(
+    "--space-around-kwargs-equals",
+    is_flag=True,
+    help="Add spaces around kwargs equals signs (e.g., func(a = 1) instead of func(a=1)).",
+)
+@click.option(
+    "--space-around-dict-colons",
+    is_flag=True,
+    help="Add spaces around dict colons (e.g., {a : b} instead of {a: b}).",
+)
+@click.option(
     "--check",
     is_flag=True,
     help=(
@@ -440,6 +455,9 @@ def main(  # noqa: C901
     skip_magic_trailing_comma: bool,
     experimental_string_processing: bool,
     preview: bool,
+    space_around_infix_operators: bool,
+    space_around_kwargs_equals: bool,
+    space_around_dict_colons: bool,
     quiet: bool,
     verbose: bool,
     required_version: Optional[str],
@@ -544,6 +562,9 @@ def main(  # noqa: C901
         experimental_string_processing=experimental_string_processing,
         preview=preview,
         python_cell_magics=set(python_cell_magics),
+        space_around_infix_operators=space_around_infix_operators,
+        space_around_kwargs_equals=space_around_kwargs_equals,
+        space_around_dict_colons=space_around_dict_colons,
     )
 
     if code is not None:

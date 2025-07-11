@@ -177,6 +177,10 @@ class Mode:
     experimental_string_processing: bool = False
     python_cell_magics: Set[str] = field(default_factory=set)
     preview: bool = False
+    # Prism-specific whitespace configuration
+    space_around_infix_operators: bool = False
+    space_around_kwargs_equals: bool = False
+    space_around_dict_colons: bool = False
 
     def __post_init__(self) -> None:
         if self.experimental_string_processing:
@@ -217,6 +221,9 @@ class Mode:
             str(int(self.magic_trailing_comma)),
             str(int(self.experimental_string_processing)),
             str(int(self.preview)),
+            str(int(self.space_around_infix_operators)),
+            str(int(self.space_around_kwargs_equals)),
+            str(int(self.space_around_dict_colons)),
             sha256((",".join(sorted(self.python_cell_magics))).encode()).hexdigest(),
         ]
         return ".".join(parts)
